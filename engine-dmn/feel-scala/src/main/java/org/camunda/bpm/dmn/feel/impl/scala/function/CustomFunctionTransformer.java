@@ -20,6 +20,7 @@ import org.camunda.bpm.dmn.feel.impl.scala.ScalaFeelLogger;
 import org.camunda.feel.context.JavaFunction;
 import org.camunda.feel.context.JavaFunctionProvider;
 import org.camunda.feel.syntaxtree.Val;
+import org.camunda.feel.syntaxtree.ValError;
 import org.camunda.feel.valuemapper.ValueMapper;
 
 import java.util.Collection;
@@ -83,6 +84,7 @@ public class CustomFunctionTransformer extends JavaFunctionProvider {
   protected List<Object> unpackVals(List<Val> args) {
     return args.stream()
       .map(this::unpackVal)
+      .map(i -> i instanceof ValError ? null : i)
       .collect(Collectors.toList());
   }
 

@@ -22,25 +22,16 @@ import org.camunda.bpm.dmn.feel.impl.scala.function.FeelCustomFunctionProvider;
 import org.camunda.bpm.dmn.feel.impl.scala.spin.SpinValueMapperFactory;
 import org.camunda.bpm.engine.variable.context.VariableContext;
 import org.camunda.feel.FeelEngine.Builder;
-import org.camunda.feel.FeelEngine.Failure;
-import org.camunda.feel.FeelEngine.UnaryTests$;
 import org.camunda.feel.context.CustomContext;
+import org.camunda.feel.context.JavaVariableProvider;
 import org.camunda.feel.context.VariableProvider;
-import org.camunda.feel.context.VariableProvider.StaticVariableProvider;
 import org.camunda.feel.impl.JavaValueMapper;
 import org.camunda.feel.valuemapper.CustomValueMapper;
-import org.camunda.feel.valuemapper.ValueMapper.CompositeValueMapper;
-import scala.collection.immutable.List;
-import scala.collection.immutable.Map;
-import scala.runtime.BoxesRunTime;
-import scala.util.Either;
-import scala.util.Left;
-import scala.util.Right;
+import org.camunda.feel.valuemapper.JavaCustomValueMapper;
 
 import java.util.Arrays;
-
-import static org.camunda.feel.context.VariableProvider.CompositeVariableProvider;
-import static scala.jdk.CollectionConverters.ListHasAsScala;
+import java.util.Collections;
+import java.util.List;
 
 public class ScalaFeelEngine implements FeelEngine {
 
@@ -51,7 +42,8 @@ public class ScalaFeelEngine implements FeelEngine {
   public ScalaFeelEngine(java.util.List<FeelCustomFunctionProvider> functionProviders) {
     List<CustomValueMapper> valueMappers = getValueMappers();
 
-    CompositeValueMapper compositeValueMapper = new CompositeValueMapper(valueMappers);
+    JavaCustomValueMapper.CompositeValueMapper compositeValueMapper =
+      new JavaCustomValueMapper.CompositeValueMapper(valueMappers);
 
     CustomFunctionTransformer customFunctionTransformer =
       new CustomFunctionTransformer(functionProviders, compositeValueMapper);
@@ -67,53 +59,29 @@ public class ScalaFeelEngine implements FeelEngine {
       }
     };
 
-    Either either = feelEngine.evalExpression(expression, context);
-
-    if (either instanceof Right) {
-      Right right = (Right) either;
-
-      return (T) right.value();
-
-    } else {
-      Left left = (Left) either;
-      Failure failure = (Failure) left.value();
-      String message = failure.message();
-
-      throw LOGGER.evaluationException(message);
-
+    try {
+      return feelEngine.evalExpressionAsValue(expression, context);
+    } catch (RuntimeException e) {
+      throw LOGGER.evaluationException(e.getMessage());
     }
   }
 
   public boolean evaluateSimpleUnaryTests(String expression,
                                           String inputVariable,
                                           VariableContext variableContext) {
-    Map inputVariableMap = new Map.Map1(UnaryTests$.MODULE$.inputVariable(), inputVariable);
-
-    StaticVariableProvider inputVariableContext = new StaticVariableProvider(inputVariableMap);
-
-    ContextVariableWrapper contextVariableWrapper = new ContextVariableWrapper(variableContext);
+    JavaVariableProvider inputVariableProvider = new InputVariableProvider(inputVariable);
+    JavaVariableProvider contextVariableWrapper = new ContextVariableWrapper(variableContext);
 
     CustomContext context = new CustomContext() {
       public VariableProvider variableProvider() {
-        return new CompositeVariableProvider(toScalaList(inputVariableContext, contextVariableWrapper));
+        return new CompositeVariableProvider(inputVariableProvider, contextVariableWrapper);
       }
     };
 
-    Either either = feelEngine.evalUnaryTests(expression, context);
-
-    if (either instanceof Right) {
-      Right right = (Right) either;
-      Object value = right.value();
-
-      return BoxesRunTime.unboxToBoolean(value);
-
-    } else {
-      Left left = (Left) either;
-      Failure failure = (Failure) left.value();
-      String message = failure.message();
-
-      throw LOGGER.evaluationException(message);
-
+    try {
+      return feelEngine.evalUnaryTestsAsBoolean(expression, context);
+    } catch (RuntimeException e) {
+      throw LOGGER.evaluationException(e.getMessage());
     }
   }
 
@@ -124,27 +92,16 @@ public class ScalaFeelEngine implements FeelEngine {
 
     CustomValueMapper spinValueMapper = spinValueMapperFactory.createInstance();
     if (spinValueMapper != null) {
-      return toScalaList(javaValueMapper, spinValueMapper);
+      return Arrays.asList(javaValueMapper, spinValueMapper);
 
     } else {
-      return toScalaList(javaValueMapper);
+      return Collections.singletonList(javaValueMapper);
 
     }
   }
 
-  @SafeVarargs
-  protected final <T> List<T> toScalaList(T... elements) {
-    java.util.List<T> listAsJava = Arrays.asList(elements);
-
-    return toList(listAsJava);
-  }
-
-  protected <T> List<T> toList(java.util.List list) {
-    return ListHasAsScala(list).asScala().toList();
-  }
-
   protected org.camunda.feel.FeelEngine buildFeelEngine(CustomFunctionTransformer transformer,
-                                                        CompositeValueMapper valueMapper) {
+                                                        JavaCustomValueMapper.CompositeValueMapper valueMapper) {
     return new Builder()
       .functionProvider(transformer)
       .valueMapper(valueMapper)

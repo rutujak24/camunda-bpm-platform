@@ -16,7 +16,6 @@
  */
 package org.camunda.spin.plugin.impl.feel.integration;
 
-import static camundajar.impl.scala.jdk.CollectionConverters.ListHasAsScala;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Arrays;
@@ -35,6 +34,7 @@ import org.camunda.feel.syntaxtree.ValContext;
 import org.camunda.feel.syntaxtree.ValList;
 import org.camunda.feel.syntaxtree.ValString;
 import org.camunda.feel.valuemapper.CustomValueMapper;
+import org.camunda.feel.valuemapper.JavaCustomValueMapper;
 import org.camunda.feel.valuemapper.ValueMapper;
 import org.camunda.spin.Spin;
 import org.camunda.spin.json.SpinJsonNode;
@@ -55,8 +55,7 @@ public class SpinValueMapperTest {
     DefaultValueMapper defaultValueMapper = DefaultValueMapper.instance();
     SpinValueMapper spinValueMapper = new SpinValueMapper();
     List<CustomValueMapper> mapperList = Arrays.asList(defaultValueMapper, spinValueMapper);
-    valueMapper = new ValueMapper
-        .CompositeValueMapper(ListHasAsScala(mapperList).asScala().toList());
+    valueMapper = new JavaCustomValueMapper.CompositeValueMapper(mapperList);
   }
 
   @Test

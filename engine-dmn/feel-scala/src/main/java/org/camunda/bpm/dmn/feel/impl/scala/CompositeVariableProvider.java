@@ -16,36 +16,39 @@
  */
 package org.camunda.bpm.dmn.feel.impl.scala;
 
-import org.camunda.bpm.engine.variable.context.VariableContext;
-import org.camunda.bpm.engine.variable.value.TypedValue;
 import org.camunda.feel.context.JavaVariableProvider;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
-public class ContextVariableWrapper extends JavaVariableProvider {
+public class CompositeVariableProvider extends JavaVariableProvider {
 
-  protected VariableContext context;
+  protected List<JavaVariableProvider> providers;
 
-  public ContextVariableWrapper(VariableContext context) {
-    this.context = context;
+  public CompositeVariableProvider(JavaVariableProvider... providers) {
+    this.providers = Arrays.asList(providers);
   }
 
   @Override
   public Optional<Object> getVariableAsOptional(String name) {
-    if (context.containsVariable(name)) {
-      TypedValue typedValue = context.resolve(name);
-      Object value = typedValue.getValue();
-      return Optional.ofNullable(value);
-
-    } else {
-      return Optional.empty();
-
+    for (JavaVariableProvider provider : providers) {
+      Optional<Object> variable = provider.getVariableAsOptional(name);
+      if (variable.isPresent()) {
+        return variable;
+      }
     }
+    return Optional.empty();
   }
 
   @Override
   public Iterable<String> keysAsIterable() {
-    return context.keySet();
+    List<String> keys = new ArrayList<>();
+    providers.forEach(provider -> {
+      provider.keysAsIterable().forEach(keys::add);
+    });
+    return keys;
   }
 
 }

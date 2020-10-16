@@ -16,36 +16,33 @@
  */
 package org.camunda.bpm.dmn.feel.impl.scala;
 
-import org.camunda.bpm.engine.variable.context.VariableContext;
-import org.camunda.bpm.engine.variable.value.TypedValue;
 import org.camunda.feel.context.JavaVariableProvider;
 
+import java.util.Collections;
 import java.util.Optional;
 
-public class ContextVariableWrapper extends JavaVariableProvider {
+public class InputVariableProvider extends JavaVariableProvider {
 
-  protected VariableContext context;
+  protected static final String INPUT_VARIABLE_NAME = "inputVariableName";
 
-  public ContextVariableWrapper(VariableContext context) {
-    this.context = context;
+  protected String inputVariable;
+
+  public InputVariableProvider(String inputVariable) {
+    this.inputVariable = inputVariable;
   }
 
   @Override
   public Optional<Object> getVariableAsOptional(String name) {
-    if (context.containsVariable(name)) {
-      TypedValue typedValue = context.resolve(name);
-      Object value = typedValue.getValue();
-      return Optional.ofNullable(value);
-
+    if (INPUT_VARIABLE_NAME.equals(name)) {
+      return Optional.ofNullable(inputVariable);
     } else {
       return Optional.empty();
-
     }
   }
 
   @Override
   public Iterable<String> keysAsIterable() {
-    return context.keySet();
+    return Collections.singleton(INPUT_VARIABLE_NAME);
   }
 
 }
